@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System.Text.RegularExpressions;
 using KModkit;
 
 public class BamboozlingButtonScript : MonoBehaviour {
@@ -256,10 +257,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
                         case 2:
                             objectID[1].material = objectColours[5];
                             objectID[2].material = objectColours[5];
-                            break;
-                        case 3:
-                            objectID[1].material = objectColours[5];
-                            objectID[2].material = objectColours[5];
+                            objectID[0].material = objectColours[0];
                             GetComponent<KMBombModule>().HandlePass();
                             moduleSolved = true;
                             buttonText[0].text = "WELL";
@@ -370,6 +368,80 @@ public class BamboozlingButtonScript : MonoBehaviour {
                 displayText.text = message[i];
             }
             yield return new WaitForSeconds(1);
+        }
+    }
+
+    //twitch plays
+    private bool isInputValid(string sn)
+    {
+        int temp = 0;
+        bool preformed = int.TryParse(sn, out temp);
+        if(preformed == true && (temp >= 0 && temp <= 99))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    #pragma warning disable 414
+    private readonly string TwitchHelpMessage = @"!{0} press 13 [Presses the button when the last two digits of the bomb's timer are '##:13'] !{0} dtap 5 [Double taps the button when the last digit of the bomb's timer is '##:#5'] | !{0} reset [Resets the module ENTIRELY]";
+    #pragma warning restore 414
+    IEnumerator ProcessTwitchCommand(string command)
+    {
+        if (Regex.IsMatch(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            yield return null;
+            Debug.LogFormat("[Bamboozling Button #{0}] TP reset called!", moduleID);
+            StopCoroutine(textCycle);
+            Start();
+            yield break;
+        }
+        string[] parameters = command.Split(' ');
+        if (Regex.IsMatch(parameters[0], @"^\s*press\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (parameters.Length == 2)
+            {
+                if (isInputValid(parameters[1]))
+                {
+                    yield return null;
+                    if(parameters[1].Length == 1)
+                    {
+                        parameters[1] = "0" + parameters[1];
+                    }
+                    Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:{1}'!", moduleID, parameters[1]);
+                    while (!Bomb.GetFormattedTime().Substring(Bomb.GetFormattedTime().Length-2, 2).EqualsIgnoreCase(parameters[1])) yield return "trycancel The button was not pressed due to a request to cancel.";
+                    button.OnInteract();
+                }
+                else
+                {
+                    yield return "sendtochat That specified set of digits is invalid!";
+                }
+            }
+            yield break;
+        }
+        if (Regex.IsMatch(parameters[0], @"^\s*dtap\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (parameters.Length == 2)
+            {
+                if (isInputValid(parameters[1]))
+                {
+                    yield return null;
+                    if (parameters[1].Length == 1)
+                    {
+                        parameters[1] = "0" + parameters[1];
+                    }
+                    Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:{1}'!", moduleID, parameters[1]);
+                    while (!Bomb.GetFormattedTime().Substring(Bomb.GetFormattedTime().Length - 2, 2).EqualsIgnoreCase(parameters[1])) yield return "trycancel The button was not pressed due to a request to cancel.";
+                    button.OnInteract();
+                    yield return new WaitForSeconds(0.05f);
+                    button.OnInteract();
+                }
+                else
+                {
+                    yield return "sendtochat That specified set of digits is invalid!";
+                }
+            }
+            yield break;
         }
     }
 }
