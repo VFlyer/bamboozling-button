@@ -376,7 +376,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
     {
         int temp = 0;
         bool preformed = int.TryParse(sn, out temp);
-        if(preformed == true && (temp >= 0 && temp <= 99))
+        if(preformed == true && (temp >= 0 && temp <= 59))
         {
             return true;
         }
@@ -404,12 +404,18 @@ public class BamboozlingButtonScript : MonoBehaviour {
                 if (isInputValid(parameters[1]))
                 {
                     yield return null;
-                    if(parameters[1].Length == 1)
+                    int timepress = 0;
+                    int.TryParse(parameters[1], out timepress);
+                    if (parameters[1].Length == 1)
                     {
-                        parameters[1] = "0" + parameters[1];
+                        Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:#{1}'!", moduleID, timepress);
+                        while ((((int)Bomb.GetTime() % 60) % 10) != timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
                     }
-                    Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:{1}'!", moduleID, parameters[1]);
-                    while (!Bomb.GetFormattedTime().Substring(Bomb.GetFormattedTime().Length-2, 2).EqualsIgnoreCase(parameters[1])) yield return "trycancel The button was not pressed due to a request to cancel.";
+                    else
+                    {
+                        Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:{1}'!", moduleID, timepress);
+                        while (((int)Bomb.GetTime() % 60) != timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
+                    }
                     button.OnInteract();
                 }
                 else
@@ -426,12 +432,18 @@ public class BamboozlingButtonScript : MonoBehaviour {
                 if (isInputValid(parameters[1]))
                 {
                     yield return null;
+                    int timepress = 0;
+                    int.TryParse(parameters[1], out timepress);
                     if (parameters[1].Length == 1)
                     {
-                        parameters[1] = "0" + parameters[1];
+                        Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:#{1}'!", moduleID, timepress);
+                        while ((((int)Bomb.GetTime() % 60) % 10) != timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
                     }
-                    Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:{1}'!", moduleID, parameters[1]);
-                    while (!Bomb.GetFormattedTime().Substring(Bomb.GetFormattedTime().Length - 2, 2).EqualsIgnoreCase(parameters[1])) yield return "trycancel The button was not pressed due to a request to cancel.";
+                    else
+                    {
+                        Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:{1}'!", moduleID, timepress);
+                        while (((int)Bomb.GetTime() % 60) != timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
+                    }
                     button.OnInteract();
                     yield return new WaitForSeconds(0.05f);
                     button.OnInteract();
