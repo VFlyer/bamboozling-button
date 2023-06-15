@@ -47,9 +47,8 @@ public class BamboozlingButtonScript : MonoBehaviour {
     new int[55]{-9 ,-8 ,2  ,3  ,-2 ,-4 ,8  ,-6 ,8  ,2  ,-5 ,10 ,2  ,-4 ,-5 ,4  ,-5 ,-6 ,9  ,-3 ,-4 ,6  ,-9 ,2  ,3  ,1  ,-7 ,9  ,7  ,8  ,9  ,0  ,-8 ,7  ,0  ,-5 ,0  ,-2 ,3  ,4  ,2  ,-4 ,-1 ,-8 ,3  ,2  ,4  ,8  ,-8 ,-9 ,5  ,-3 ,8  ,-6 ,-3},
     new int[55]{0  ,2  ,7  ,3  ,5  ,-4 ,3  ,9  ,8  ,6  ,2  ,-2 ,-9 ,2  ,-4 ,7  ,9  ,-8 ,-3 ,-8 ,2  ,1  ,-6 ,-7 ,8  ,-3 ,-1 ,9  ,0  ,1  ,4  ,1  ,5  ,3  ,-1 ,-3 ,4  ,3  ,-10,10 ,7  ,3  ,4  ,-4 ,2  ,8  ,-8 ,1  ,-6 ,1  ,3  ,-8 ,6  ,2  ,-5},
     new int[55]{-1 ,1  ,-4 ,-2 ,-7 ,0  ,1  ,2  ,9  ,-2 ,4  ,10 ,-1 ,5  ,-7 ,-6 ,-5 ,3  ,7  ,-5 ,7  ,6  ,-6 ,4  ,-9 ,1  ,-7 ,-5 ,7  ,6  ,-3 ,-8 ,0  ,-5 ,10 ,-9 ,-7 ,1  ,6  ,2  ,8  ,-4 ,5  ,2  ,-4 ,-2 ,-7 ,-8 ,-1 ,-4 ,-2 ,-10,3  ,7  ,-9},
-    new int[55]{0  ,-6 ,6  ,0  ,-3 ,-9 ,5  ,1  ,10 ,-9 ,-6 ,2  ,-4 ,3  ,-2 ,1  ,6  ,-10,-4 ,9  ,-7 ,10 ,-8 ,-3 ,1  ,8  ,10 ,4  ,-8 ,7  ,-9 ,4  ,-9 ,-1 ,4  ,3  ,-1 ,-2 ,7  ,-9 ,-1 ,-7 ,-9 ,-10,-6 ,-2 ,1  ,-9 ,4  ,3  ,-6 ,-9 ,4  ,10 ,2}};
+    new int[55]{0  ,-6 ,6  ,0  ,3 ,-9 ,5  ,1  ,10 ,-9 ,-6 ,2  ,-4 ,3  ,-2 ,1  ,6  ,-10,-4 ,9  ,-7 ,10 ,-8 ,-3 ,1  ,8  ,10 ,4  ,-8 ,7  ,-9 ,4  ,-9 ,-1 ,4  ,3  ,-1 ,-2 ,7  ,-9 ,-1 ,-7 ,-9 ,-10,-6 ,-2 ,1  ,-9 ,4  ,3  ,-6 ,-9 ,4  ,10 ,2}};
 
-    //Logging
     static int moduleCounter = 1;
     int moduleID;
     private bool moduleSolved;
@@ -376,7 +375,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
     {
         int temp = 0;
         bool preformed = int.TryParse(sn, out temp);
-        if(preformed == true && (temp >= 0 && temp <= 59))
+        if (preformed == true && (temp >= 0 && temp <= 59))
         {
             return true;
         }
@@ -384,16 +383,23 @@ public class BamboozlingButtonScript : MonoBehaviour {
     }
 
     #pragma warning disable 414
-    private readonly string TwitchHelpMessage = @"!{0} press 13 [Presses the button when the last two digits of the bomb's timer are '##:13'] !{0} dtap 5 [Double taps the button when the last digit of the bomb's timer is '##:#5'] | !{0} reset [Resets the module ENTIRELY]";
+    private readonly string TwitchHelpMessage = @"!{0} press <##> [Presses the button when the seconds digits of the bomb's timer are '##'] | !{0} dtap <#> [Double taps the button when the last seconds digit of the bomb's timer is '#'] | !{0} reset [Remove any inputs made into the module]";
     #pragma warning restore 414
     IEnumerator ProcessTwitchCommand(string command)
     {
         if (Regex.IsMatch(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
             yield return null;
+            if (!buttonPressed)
+            {
+                yield return "sendtochaterror Module cannot reset if the button has not been pressed!";
+                yield break;
+            }
             Debug.LogFormat("[Bamboozling Button #{0}] TP reset called!", moduleID);
-            StopCoroutine(textCycle);
-            Start();
+            textCycle = TextCycle();
+            StartCoroutine(textCycle);
+            buttonPressed = false;
+            objectID[3].material = objectColours[14];
             yield break;
         }
         string[] parameters = command.Split(' ');
@@ -408,12 +414,27 @@ public class BamboozlingButtonScript : MonoBehaviour {
                     int.TryParse(parameters[1], out timepress);
                     if (parameters[1].Length == 1)
                     {
-                        Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:#{1}'!", moduleID, timepress);
+                        yield return "sendtochat Pressing the button at '##:#" + timepress + "'!";
+                        if (((int)Bomb.GetTime() % 60) == timepress)
+                        {
+                            while ((((int)Bomb.GetTime() % 60) % 10) == timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
+                        }
                         while ((((int)Bomb.GetTime() % 60) % 10) != timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
                     }
                     else
                     {
-                        Debug.LogFormat("[Bamboozling Button #{0}] Pressing the button at '##:{1}'!", moduleID, timepress);
+                        if (timepress < 10)
+                        {
+                            yield return "sendtochat Pressing the button at '##:0" + timepress + "'!";
+                        }
+                        else
+                        {
+                            yield return "sendtochat Pressing the button at '##:" + timepress + "'!";
+                        }
+                        if (((int)Bomb.GetTime() % 60) == timepress)
+                        {
+                            while (((int)Bomb.GetTime() % 60) == timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
+                        }
                         while (((int)Bomb.GetTime() % 60) != timepress) yield return "trycancel The button was not pressed due to a request to cancel.";
                     }
                     button.OnInteract();
@@ -436,12 +457,27 @@ public class BamboozlingButtonScript : MonoBehaviour {
                     int.TryParse(parameters[1], out timepress);
                     if (parameters[1].Length == 1)
                     {
-                        Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:#{1}'!", moduleID, timepress);
+                        yield return "sendtochat Double Tapping the button at '##:#" + timepress + "'!";
+                        if ((((int)Bomb.GetTime() % 60) % 10) == timepress)
+                        {
+                            while ((((int)Bomb.GetTime() % 60) % 10) == timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
+                        }
                         while ((((int)Bomb.GetTime() % 60) % 10) != timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
                     }
                     else
                     {
-                        Debug.LogFormat("[Bamboozling Button #{0}] Double Tapping the button at '##:{1}'!", moduleID, timepress);
+                        if(timepress < 10)
+                        {
+                            yield return "sendtochat Double Tapping the button at '##:0" + timepress + "'!";
+                        }
+                        else
+                        {
+                            yield return "sendtochat Double Tapping the button at '##:" + timepress + "'!";
+                        }
+                        if (((int)Bomb.GetTime() % 60) == timepress)
+                        {
+                            while (((int)Bomb.GetTime() % 60) == timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
+                        }
                         while (((int)Bomb.GetTime() % 60) != timepress) yield return "trycancel The button was not double tapped due to a request to cancel.";
                     }
                     button.OnInteract();
