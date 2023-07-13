@@ -128,6 +128,7 @@ GameObject:
   - component: {fileID: 114155614599839008}
   - component: {fileID: 114303122142330066}
   - component: {fileID: 114982328446233512}
+  - component: {fileID: 114023888538401558}
   m_Layer: 0
   m_Name: BamboozlingButton
   m_TagString: Untagged
@@ -1883,6 +1884,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShaderNames:
   - KT/Mobile/DiffuseTint
+--- !u!114 &114023888538401558
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1149248154321630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adf69c2de51bd3c43bbd9bc22578ee08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _seed: 1
 --- !u!114 &114054116564501316
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -2064,7 +2077,7 @@ MonoBehaviour:
   Children:
   - {fileID: 114177097094548302}
   IsPassThrough: 0
-  ChildRowLength: 0
+  ChildRowLength: 1
   Highlight: {fileID: 114013104277822236}
   SelectableColliders: []
   DefaultSelectableIndex: 0
@@ -2269,11 +2282,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1149248154321630}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 50ad8518d0232e9438240cf0d6634f25, type: 3}
+  m_Script: {fileID: 11500000, guid: 8e3c2ed0884e67c46bb0f8ad25154e90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   Audio: {fileID: 114865668317931052}
   Bomb: {fileID: 114842033639732378}
+  ruleSeedable: {fileID: 114023888538401558}
   button: {fileID: 114177097094548302}
   objectID:
   - {fileID: 23752847066205508}

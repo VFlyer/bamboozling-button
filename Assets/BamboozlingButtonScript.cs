@@ -10,6 +10,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
 
     public KMAudio Audio;
     public KMBombInfo Bomb;
+    public KMRuleSeedable ruleSeedable;
     public KMSelectable button;
     public Renderer[] objectID;
     public Material[] objectColours;
@@ -30,7 +31,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
     private string[] textField = new string[55] {"A LETTER", "A WORD", "THE LETTER", "THE WORD", "1 LETTER", "1 WORD", "ONE LETTER", "ONE WORD",
     "B", "C", "D", "E", "G", "K", "N", "P", "Q", "T", "V", "W", "Y",
     "BRAVO", "CHARLIE", "DELTA", "ECHO", "GOLF", "KILO", "NOVEMBER", "PAPA", "QUEBEC", "TANGO", "VICTOR", "WHISKEY", "YANKEE",
-    "COLOUR", "RED", "ORANGE", "YELLOW", "LIME", "GREEN", "JADE","CYAN", "AZURE", "BLUE", "VIOLET", "MAGENTA", "ROSE",
+    "COLOUR", "RED", "ORANGE", "YELLOW", "LIME", "GREEN", "JADE", "CYAN", "AZURE", "BLUE", "VIOLET", "MAGENTA", "ROSE",
     "IN RED", "IN YELLOW", "IN GREEN", "IN CYAN", "IN BLUE", "IN MAGENTA", "QUOTE", "END QUOTE"};
     private int[][] table = new int[15][] {
     new int[55]{-10,8  ,-8 ,3  ,5  ,-10,-9 ,7  ,3  ,-5 ,1  ,-2 ,6  ,5  ,1  ,-10,7  ,-6 ,-9 ,-7 ,-10,-7 ,-3 ,4  ,-8 ,-1 ,-5 ,4  ,7  ,-8 ,-1 ,6  ,-7 ,10 ,7  ,-4 ,-3 ,7  ,-3 ,-8 ,-6 ,6  ,0  ,4  ,1  ,4  ,-6 ,1  ,7  ,-5 ,8  ,9  ,-8 ,-9 ,7},
@@ -47,11 +48,16 @@ public class BamboozlingButtonScript : MonoBehaviour {
     new int[55]{-9 ,-8 ,2  ,3  ,-2 ,-4 ,8  ,-6 ,8  ,2  ,-5 ,10 ,2  ,-4 ,-5 ,4  ,-5 ,-6 ,9  ,-3 ,-4 ,6  ,-9 ,2  ,3  ,1  ,-7 ,9  ,7  ,8  ,9  ,0  ,-8 ,7  ,0  ,-5 ,0  ,-2 ,3  ,4  ,2  ,-4 ,-1 ,-8 ,3  ,2  ,4  ,8  ,-8 ,-9 ,5  ,-3 ,8  ,-6 ,-3},
     new int[55]{0  ,2  ,7  ,3  ,5  ,-4 ,3  ,9  ,8  ,6  ,2  ,-2 ,-9 ,2  ,-4 ,7  ,9  ,-8 ,-3 ,-8 ,2  ,1  ,-6 ,-7 ,8  ,-3 ,-1 ,9  ,0  ,1  ,4  ,1  ,5  ,3  ,-1 ,-3 ,4  ,3  ,-10,10 ,7  ,3  ,4  ,-4 ,2  ,8  ,-8 ,1  ,-6 ,1  ,3  ,-8 ,6  ,2  ,-5},
     new int[55]{-1 ,1  ,-4 ,-2 ,-7 ,0  ,1  ,2  ,9  ,-2 ,4  ,10 ,-1 ,5  ,-7 ,-6 ,-5 ,3  ,7  ,-5 ,7  ,6  ,-6 ,4  ,-9 ,1  ,-7 ,-5 ,7  ,6  ,-3 ,-8 ,0  ,-5 ,10 ,-9 ,-7 ,1  ,6  ,2  ,8  ,-4 ,5  ,2  ,-4 ,-2 ,-7 ,-8 ,-1 ,-4 ,-2 ,-10,3  ,7  ,-9},
-    new int[55]{0  ,-6 ,6  ,0  ,3 ,-9 ,5  ,1  ,10 ,-9 ,-6 ,2  ,-4 ,3  ,-2 ,1  ,6  ,-10,-4 ,9  ,-7 ,10 ,-8 ,-3 ,1  ,8  ,10 ,4  ,-8 ,7  ,-9 ,4  ,-9 ,-1 ,4  ,3  ,-1 ,-2 ,7  ,-9 ,-1 ,-7 ,-9 ,-10,-6 ,-2 ,1  ,-9 ,4  ,3  ,-6 ,-9 ,4  ,10 ,2}};
+    new int[55]{0  ,-6 ,6  ,0  ,-3 ,-9 ,5  ,1  ,10 ,-9 ,-6 ,2  ,-4 ,3  ,-2 ,1  ,6  ,-10,-4 ,9  ,-7 ,10 ,-8 ,-3 ,1  ,8  ,10 ,4  ,-8 ,7  ,-9 ,4  ,-9 ,-1 ,4  ,3  ,-1 ,-2 ,7  ,-9 ,-1 ,-7 ,-9 ,-10,-6 ,-2 ,1  ,-9 ,4  ,3  ,-6 ,-9 ,4  ,10 ,2}};
+
+    int[][] rsIdxOverrides = new[] { new[] { 0, 1, 2, 0 }, new[] { 0, 0, 0, 1, 1 }, new[] { 2, 2, 3, 3, 6, 0, 7, 1 }, Enumerable.Range(0, 15).ToArray() };
+    // Text decoration overrides for the phrases shown, (used for else calcs)
+    // Unicorn condition check rule + DTap cell overrides.
+    // V1, V2, V3, V4 calculations
 
     static int moduleCounter = 1;
     int moduleID;
-    private bool moduleSolved;
+    private bool moduleSolved, useLastSecondDigitInstead;
 
     private void Awake()
     {
@@ -59,7 +65,76 @@ public class BamboozlingButtonScript : MonoBehaviour {
         button.OnInteract += delegate () { ButtonOn(); return false;  };
     }
 
+    void GenerateRuleSeed()
+    {
+        var rsHandler = ruleSeedable.GetRNG();
+        if (rsHandler.Seed == 1) return;
+        // Mix up the text decoration the else press conditions used.
+        var shuffledIdxes = rsHandler.ShuffleFisherYates(Enumerable.Range(0, 3).ToArray());
+        rsIdxOverrides[0] = shuffledIdxes.Concat(new[] { rsHandler.NextDouble() < 0.5f ? 1 : 0 }).ToArray();
+        // Mix up the unicorn condition check rule and DTap cell overrides.
+        rsIdxOverrides[1][0] = rsHandler.NextDouble() < 0.5f ? 1 : 0;
+        var rowIdxShuffled = rsHandler.ShuffleFisherYates(Enumerable.Range(0, 2).ToArray());
+        var colIdxShuffled = rsHandler.ShuffleFisherYates(Enumerable.Range(0, 2).ToArray());
+        for (var p = 0; p < 2; p++)
+        {
+            rsIdxOverrides[1][1 + 2 * p] = colIdxShuffled[p];
+            rsIdxOverrides[1][2 + 2 * p] = rowIdxShuffled[p];
+        }
+        // Mix up V1, V2, V3, V4 calcs.
+        var VRowIdxShuffled = rsHandler.ShuffleFisherYates(Enumerable.Range(6, 2).Concat(rsHandler.NextDouble() < 0.5f ? Enumerable.Range(2, 2) : Enumerable.Range(4, 2)).ToArray());
+        var VColIdxShuffled = rsHandler.ShuffleFisherYates(Enumerable.Range(0, 4).ToArray());
+        for (var p = 0; p < 4; p++)
+        {
+            rsIdxOverrides[2][2 * p] = VRowIdxShuffled[p];
+            rsIdxOverrides[2][1 + 2 * p] = VColIdxShuffled[p];
+        }
+        // Mix up the rows and phrases used on this module.
+        var startingPhrases = new[] { "A LETTER", "A WORD", "THE LETTER", "THE WORD", "1 LETTER", "1 WORD", "ONE LETTER", "ONE WORD" };
+        var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray().Select(a => a.ToString()).ToArray();
+        var nato = "ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL INDIA JULIET KILO LIMA MIKE NOVEMBER OSCAR PAPA QUEBEC ROMEO SIERRA TANGO UNIFORM VICTOR WHISKEY XRAY YANKEE ZULU".Split();
+        rsHandler.ShuffleFisherYates(startingPhrases);
+        var idxesFiltered = rsHandler.ShuffleFisherYates(Enumerable.Range(0, 26).ToArray()).Take(13).OrderBy(a => a);
+        for (var p = 0; p < 8; p++) // Exactly 8 starting phrases are used on this.
+            textField[p] = startingPhrases[p];
+        for (var p = 0; p < 13; p++) // Exactly 13 Nato phrases are used on this.
+        {
+            textField[8 + p] = letters[idxesFiltered.ElementAt(p)];
+            textField[21 + p] = nato[idxesFiltered.ElementAt(p)];
+        }
+        rsHandler.ShuffleFisherYates(rsIdxOverrides[3]);
+        // Finally, create random values.
+        for (var x = 0; x < 15; x++)
+        {
+            var nxtValsAll = new int[55];
+            for (var y = 0; y < 55; y++)
+                nxtValsAll[y] = rsHandler.Next(-10, 11);
+            table[x] = nxtValsAll;
+        }
+        
+    }
+    void LogRuleSeed()
+    {
+        Debug.LogFormat("[Bamboozling Button #{0}] Rule seed generated using rule seed {1}.", moduleID, ruleSeedable.GetRNG().Seed);
+        Debug.LogFormat("<Bamboozling Button #{0}> Cell Row Labels (From top to bottom): {1}", moduleID, textField.Join(", "));
+        Debug.LogFormat("<Bamboozling Button #{0}> Cell Values (from top to bottom, left to right):", moduleID);
+        for (var x = 0; x < 15; x++)
+            Debug.LogFormat("<Bamboozling Button #{0}> {1}: {2}", moduleID, ech[rsIdxOverrides[3][x]], table[x].Join(", "));
+        var possibleRowCalcs = new[] { "D4", "D5", "D4 - D1", "D5 - D3", "D4 - D3", "D5 - D1", "B1", "B2", };
+        var possibleColCalcs = new[] { "[D4]", "[D5]", "[B]", "14 - [B]", };
+        Debug.LogFormat("<Bamboozling Button #{0}> {1} button text matches: DTap ({2}, {3})", moduleID, rsIdxOverrides[1][0] == 1 ? "Bottom" : "Top", possibleRowCalcs[rsIdxOverrides[1][1]], possibleColCalcs[rsIdxOverrides[1][2]]);
+        Debug.LogFormat("<Bamboozling Button #{0}> {1} button text matches: DTap ({2}, {3})", moduleID, rsIdxOverrides[1][0] == 1 ? "Top" : "Bottom", possibleRowCalcs[rsIdxOverrides[1][3]], possibleColCalcs[rsIdxOverrides[1][4]]);
+        for (var x = 0; x < 4; x++)
+            Debug.LogFormat("<Bamboozling Button #{0}> V{1} Calcs: ({2}, {3})", moduleID, x + 1, possibleRowCalcs[rsIdxOverrides[2][2 * x]], possibleColCalcs[rsIdxOverrides[2][2 * x + 1]]);
+        Debug.LogFormat("<Bamboozling Button #{0}> Comma present, {1}. Else: {2}", moduleID, rsIdxOverrides[0][3] == 1 ? "X = V1 + V2; Y = V3 + V4" : "X = V3 + V4; Y = V1 + V2", rsIdxOverrides[0][3] == 0 ? "X = V1 + V2; Y = V3 + V4" : "X = V3 + V4; Y = V1 + V2");
+        Debug.LogFormat("<Bamboozling Button #{0}> Symbol for presses X mod 10, Y mod 10: {1}", moduleID, new[] { "<none>", "''", "\"\"" }[rsIdxOverrides[0][0]]);
+        Debug.LogFormat("<Bamboozling Button #{0}> Symbol for presses (X mod 9) + 3, (Y mod 9) + 3: {1}", moduleID, new[] { "<none>", "''", "\"\"" }[rsIdxOverrides[0][1]]);
+        Debug.LogFormat("<Bamboozling Button #{0}> Symbol for presses (2X mod 9) + 3, (2Y mod 9) + 3: {1}", moduleID, new[] { "<none>", "''", "\"\"" }[rsIdxOverrides[0][2]]);
+    }
+
     void Start () {
+        GenerateRuleSeed();
+        LogRuleSeed();
         matStore.SetActive(false);
         message[1] = "THEN";
         textCycle = TextCycle();
@@ -88,9 +163,9 @@ public class BamboozlingButtonScript : MonoBehaviour {
         randomiser[10] = UnityEngine.Random.Range(0, 2);
 
         //Sets button colour
-        objectID[0].material = objectColours[randomiser[0]];
+        objectID[0].material = objectColours[rsIdxOverrides[3][randomiser[0]]];
         Debug.LogFormat("[Bamboozling Button #{0}] The button was {1} after {2} reset(s)", moduleID, ech[randomiser[0]], pressCount);
-        if (randomiser[0] == 14)
+        if (rsIdxOverrides[3][randomiser[0]] == 14)
         {
             buttonText[0].color = new Color32(192, 192, 192, 255);
             buttonText[1].color = new Color32(192, 192, 192, 255);
@@ -102,7 +177,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
         }
 
         //Sets messages
-        switch (randomiser[9])
+        switch (rsIdxOverrides[0][randomiser[9]])
         {
             case 0:
                 message[0] = textField[randomiser[3]];
@@ -119,7 +194,7 @@ public class BamboozlingButtonScript : MonoBehaviour {
         }
         message[2] = textField[randomiser[4]] + ":";
         message[3] = textField[randomiser[5]];
-        if (randomiser[10] == 1)
+        if (randomiser[10] == 1 ^ rsIdxOverrides[0][3] == 1)
         {
             message[0] = message[0] + ",";
         }
@@ -132,10 +207,14 @@ public class BamboozlingButtonScript : MonoBehaviour {
         Debug.LogFormat("[Bamboozling Button #{0}] Display 4 had the colour {1} after {2} reset(s)", moduleID, ech[randomiser[1]], pressCount);
         Debug.LogFormat("[Bamboozling Button #{0}] Display 5 had the colour {1} after {2} reset(s)", moduleID, ech[randomiser[2]], pressCount);
 
+        // Precalculated for Rule-Seed.
+        var calcedColIdxes = new[] { randomiser[1], randomiser[2], randomiser[0], 14 - randomiser[0] }; // Color Column idxes
+        var calcedRowIdxes = new[] { randomiser[5], randomiser[6], randomiser[5] - randomiser[3], randomiser[6] - randomiser[4], randomiser[5] - randomiser[4], randomiser[6] - randomiser[3], randomiser[7], randomiser[8] }; // Row Phrase idxes
         //Checks for the appearance of either button text in the display and if so, skips calculations
-        if (randomiser[3] == randomiser[7] || randomiser[4] == randomiser[7] || randomiser[5] == randomiser[7] || randomiser[6] == randomiser[7])
+        if (Enumerable.Range(3, 4).Any(a => randomiser[a] == randomiser[rsIdxOverrides[1][0] == 1 ? 8 : 7]))
         {
-            answerKey[0] = table[randomiser[1]][randomiser[5]] % 10;
+            useLastSecondDigitInstead = true;
+            answerKey[0] = table[rsIdxOverrides[1][1]][rsIdxOverrides[1][2]] % 10;
             if (answerKey[0] < 0)
             {
                 answerKey[0] = answerKey[0] + 10;
@@ -143,9 +222,10 @@ public class BamboozlingButtonScript : MonoBehaviour {
             answerKey[1] = answerKey[0];
             Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button should have been double-pressed when the last digit is {2}", moduleID, pressCount, answerKey[0]);
         }
-        else if (randomiser[3] == randomiser[8] || randomiser[4] == randomiser[8] || randomiser[5] == randomiser[8] || randomiser[6] == randomiser[8])
+        else if (Enumerable.Range(3, 4).Any(a => randomiser[a] == randomiser[rsIdxOverrides[1][0] == 1 ? 7 : 8]))
         {
-            answerKey[0] = table[randomiser[2]][randomiser[6]] % 10;
+            useLastSecondDigitInstead = true;
+            answerKey[0] = table[rsIdxOverrides[1][3]][rsIdxOverrides[1][4]] % 10;
             if (answerKey[0] < 0)
             {
                 answerKey[0] = answerKey[0] + 10;
@@ -156,18 +236,19 @@ public class BamboozlingButtonScript : MonoBehaviour {
         //Default calculation
         else
         {
-            answerKey[0] = table[randomiser[0]][randomiser[5] - randomiser[3]] + table[14 - randomiser[0]][randomiser[6] - randomiser[4]];
-            answerKey[1] = table[randomiser[1]][randomiser[7]] + table[randomiser[2]][randomiser[8]];
-            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V1 = ( {2} , {3} ) = {4}", moduleID, pressCount, randomiser[5] - randomiser[3], randomiser[0], table[randomiser[0]][randomiser[5] - randomiser[3]]);
-            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V2 = ( {2} , {3} ) = {4}", moduleID, pressCount, randomiser[6] - randomiser[4], 14 - randomiser[0], table[14 - randomiser[0]][randomiser[6] - randomiser[4]]);
-            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V3 = ( {2} , {3} ) = {4}", moduleID, pressCount, randomiser[7], randomiser[1] , table[randomiser[1]][randomiser[7]]);
-            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V4 = ( {2} , {3} ) = {4}", moduleID, pressCount, randomiser[8], randomiser[2], table[randomiser[2]][randomiser[8]]);
+            answerKey[0] = table[calcedColIdxes[rsIdxOverrides[2][1]]][calcedRowIdxes[rsIdxOverrides[2][0]]] + table[calcedColIdxes[rsIdxOverrides[2][3]]][calcedRowIdxes[rsIdxOverrides[2][2]]];
+            answerKey[1] = table[calcedColIdxes[rsIdxOverrides[2][5]]][calcedRowIdxes[rsIdxOverrides[2][4]]] + table[calcedColIdxes[rsIdxOverrides[2][7]]][calcedRowIdxes[rsIdxOverrides[2][6]]];
+            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V1 = ( {2} , {3} ) = {4}", moduleID, pressCount, calcedRowIdxes[rsIdxOverrides[2][0]], calcedColIdxes[rsIdxOverrides[2][1]], table[calcedColIdxes[rsIdxOverrides[2][1]]][calcedRowIdxes[rsIdxOverrides[2][0]]]);
+            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V2 = ( {2} , {3} ) = {4}", moduleID, pressCount, calcedRowIdxes[rsIdxOverrides[2][2]], calcedColIdxes[rsIdxOverrides[2][3]], table[calcedColIdxes[rsIdxOverrides[2][3]]][calcedRowIdxes[rsIdxOverrides[2][2]]]);
+            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V3 = ( {2} , {3} ) = {4}", moduleID, pressCount, calcedRowIdxes[rsIdxOverrides[2][4]], calcedColIdxes[rsIdxOverrides[2][5]], table[calcedColIdxes[rsIdxOverrides[2][5]]][calcedRowIdxes[rsIdxOverrides[2][4]]]);
+            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), V4 = ( {2} , {3} ) = {4}", moduleID, pressCount, calcedRowIdxes[rsIdxOverrides[2][6]], calcedColIdxes[rsIdxOverrides[2][7]], table[calcedColIdxes[rsIdxOverrides[2][7]]][calcedRowIdxes[rsIdxOverrides[2][6]]]);
             if (randomiser[10] == 1)
             {
                 int temp = answerKey[0];
                 answerKey[0] = answerKey[1];
                 answerKey[1] = temp;
             }
+            useLastSecondDigitInstead = randomiser[9] == 0;
             switch (randomiser[9])
             {
                 case 0:
@@ -201,50 +282,34 @@ public class BamboozlingButtonScript : MonoBehaviour {
                 objectID[3].material = objectColours[0];
                 StopCoroutine(textCycle);
                 displayText.text = String.Empty;
-                if (randomiser[3] == randomiser[7] || randomiser[4] == randomiser[7] || randomiser[5] == randomiser[7] || randomiser[6] == randomiser[7] || randomiser[3] == randomiser[8] || randomiser[4] == randomiser[8] || randomiser[5] == randomiser[8] || randomiser[6] == randomiser[8])
+                switch (useLastSecondDigitInstead)
                 {
-                    inputs[0] = (int)(Bomb.GetTime() % 60) % 10;
-                    Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched on when the last digit of the timer was {2}", moduleID, pressCount, inputs[0]);
-                }
-                else
-                {
-                    switch (randomiser[9])
-                    {
-                        case 0:
-                            inputs[0] = (int)(Bomb.GetTime() % 60) % 10;
-                            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched on when the last digit of the timer was {2}", moduleID, pressCount, inputs[0]);
-                            break;
-                        default:
-                            inputs[0] = (int)(Bomb.GetTime() % 60 - (Bomb.GetTime() % 60) % 10) / 10 + (int)(Bomb.GetTime() % 60) % 10;
-                            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched on when the sum of the last two digits of the timer was {2}", moduleID, pressCount, inputs[0]);
-                            break;
-                    }
+                    case true:
+                        inputs[0] = (int)(Bomb.GetTime() % 60) % 10;
+                        Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched on when the last digit of the timer was {2}. ({3} on the countdown timer)", moduleID, pressCount, inputs[0], Bomb.GetFormattedTime());
+                        break;
+                    default:
+                        inputs[0] = (int)(Bomb.GetTime() % 60 - (Bomb.GetTime() % 60) % 10) / 10 + (int)(Bomb.GetTime() % 60) % 10;
+                        Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched on when the sum of the last two digits of the timer was {2}. ({3} on the countdown timer)", moduleID, pressCount, inputs[0], Bomb.GetFormattedTime());
+                        break;
                 }
             }
             else
             {
                 buttonPressed = false;
                 objectID[3].material = objectColours[14];
-                if (randomiser[3] == randomiser[7] || randomiser[4] == randomiser[7] || randomiser[5] == randomiser[7] || randomiser[6] == randomiser[7] || randomiser[3] == randomiser[8] || randomiser[4] == randomiser[8] || randomiser[5] == randomiser[8] || randomiser[6] == randomiser[8])
+                switch (useLastSecondDigitInstead)
                 {
-                    inputs[1] = (int)(Bomb.GetTime() % 60) % 10;
-                    Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched off when the last digit of the timer was {2}", moduleID, pressCount, inputs[1]);
-                }
-                else
-                {
-                    switch (randomiser[9])
-                    {
-                        //Last digit of timer
-                        case 0:
-                            inputs[1] = (int)(Bomb.GetTime() % 60) % 10;
-                            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched off when the last digit of the timer was {2}", moduleID, pressCount, inputs[1]);
-                            break;
-                        //Sum of last two digits of timer
-                        default:
-                            inputs[1] = (int)(Bomb.GetTime() % 60 - (Bomb.GetTime() % 60) % 10) / 10 + (int)(Bomb.GetTime() % 60) % 10;
-                            Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched off when the sum of the last two digits of the timer was {2}", moduleID, pressCount, inputs[1]);
-                            break;
-                    }
+                    //Last digit of timer
+                    case true:
+                        inputs[1] = (int)(Bomb.GetTime() % 60) % 10;
+                        Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched off when the last digit of the timer was {2}. ({3} on the countdown timer)", moduleID, pressCount, inputs[1], Bomb.GetFormattedTime());
+                        break;
+                    //Sum of last two digits of timer
+                    default:
+                        inputs[1] = (int)(Bomb.GetTime() % 60 - (Bomb.GetTime() % 60) % 10) / 10 + (int)(Bomb.GetTime() % 60) % 10;
+                        Debug.LogFormat("[Bamboozling Button #{0}] After {1} reset(s), the button was switched off when the sum of the last two digits of the timer was {2}. ({3} on the countdown timer)", moduleID, pressCount, inputs[1], Bomb.GetFormattedTime());
+                        break;
                 }
                 if (inputs[0] == answerKey[0] && inputs[1] == answerKey[1])
                 {
@@ -261,6 +326,8 @@ public class BamboozlingButtonScript : MonoBehaviour {
                             moduleSolved = true;
                             buttonText[0].text = "WELL";
                             buttonText[1].text = "DONE";
+                            buttonText[0].color = new Color32(0, 0, 0, 255);
+                            buttonText[1].color = new Color32(0, 0, 0, 255);
                             break;
                     }
                     stage++;
